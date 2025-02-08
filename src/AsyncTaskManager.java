@@ -20,6 +20,7 @@ public class AsyncTaskManager {
     private final BufferedReader br;
     private final ReentrantLock lock;
     private TaskLogger taskLogger;
+    private Thread fileWatcherThread;
 
     public AsyncTaskManager() {
         name = "";
@@ -48,6 +49,9 @@ public class AsyncTaskManager {
                 }
             });
         }).thenRun(() -> {
+            fileWatcherThread = new Thread(new TaskFileWatcher(name, tasks));
+            fileWatcherThread.setDaemon(true);
+            fileWatcherThread.start();
             while (true) {
                 printWelcomeMessage();
                 byte choice = inputChoiceAsync().join();
@@ -63,6 +67,9 @@ public class AsyncTaskManager {
         System.out.println("Goodbye, " + name + "!");
         if (taskLogger != null) {
             taskLogger.stop();
+        }
+        if (fileWatcherThread != null && fileWatcherThread.isAlive()) {
+            fileWatcherThread.interrupt();
         }
     }
 

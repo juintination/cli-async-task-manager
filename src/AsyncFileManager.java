@@ -24,6 +24,10 @@ public class AsyncFileManager {
         }
     }
 
+    public static String getTasksDirectory() {
+        return TASKS_DIRECTORY;
+    }
+
     public static CompletableFuture<Boolean> nameFileExistsAsync(String name) {
         return CompletableFuture.supplyAsync(() -> {
             try (BufferedReader ignored = new BufferedReader(
@@ -41,6 +45,7 @@ public class AsyncFileManager {
             try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
                 if (tasks.isEmpty()) {
                     String line;
+                    tasks.clear();
                     while ((line = reader.readLine()) != null) {
                         String[] taskData = line.split(",");
                         if (taskData.length == 3) {
