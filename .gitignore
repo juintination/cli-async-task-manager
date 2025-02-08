@@ -30,3 +30,6 @@ bin/
 
 ### tasks file ###
 tasks/*
+
+### log files ###
+logs/*

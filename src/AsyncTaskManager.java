@@ -1,6 +1,7 @@
 import validator.TaskValidator;
 import task.Task;
 import task.state.Urgent;
+import logger.TaskLogger;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -8,28 +9,23 @@ import java.io.IOException;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class AsyncTaskManager {
-
-    private static AsyncTaskManager taskManager;
 
     private final String INPUT_ERROR_MESSAGE = "Error has occurred. Please enter it again.";
 
     private String name;
-    private BufferedReader br;
     private List<Task> tasks;
+    private final BufferedReader br;
+    private final ReentrantLock lock;
+    private TaskLogger taskLogger;
 
-    private AsyncTaskManager() {
+    public AsyncTaskManager() {
         name = "";
         br = new BufferedReader(new InputStreamReader(System.in));
         tasks = new ArrayList<>();
-    }
-
-    public static AsyncTaskManager getInstance() {
-        if (taskManager == null) {
-            taskManager = new AsyncTaskManager();
-        }
-        return taskManager;
+        lock = new ReentrantLock();
     }
 
     private void offerTask(Task task) {
@@ -41,29 +37,40 @@ public class AsyncTaskManager {
     }
 
     public void start() {
-        inputNameAsync().thenCompose(v ->
-                AsyncFileManager.nameFileExistsAsync(name).thenCompose(isExist -> {
-                    if (isExist) {
-                        return AsyncFileManager.loadTasksAsync(name, tasks);
-                    } else {
-                        return AsyncFileManager.createTasksFileAsync(name);
-                    }
-                })
-        ).thenRun(() -> {
+        inputNameAsync().thenCompose(v -> {
+            this.taskLogger = new TaskLogger(name);
+            this.taskLogger.start();
+            return AsyncFileManager.nameFileExistsAsync(name).thenCompose(isExist -> {
+                if (isExist) {
+                    return AsyncFileManager.loadTasksAsync(name, tasks);
+                } else {
+                    return AsyncFileManager.createTasksFileAsync(name);
+                }
+            });
+        }).thenRun(() -> {
             while (true) {
                 printWelcomeMessage();
-                byte choicedNumber = inputChoiceAsync().join();
-                if (!taskLoop(choicedNumber)) {
+                byte choice = inputChoiceAsync().join();
+                if (!taskLoop(choice)) {
                     break;
                 }
             }
+            shutdown();
         }).join();
+    }
+
+    private void shutdown() {
+        System.out.println("Goodbye, " + name + "!");
+        if (taskLogger != null) {
+            taskLogger.stop();
+        }
     }
 
     private CompletableFuture<Void> inputNameAsync() {
         return CompletableFuture.runAsync(() -> {
             while (true) {
                 System.out.print("Please enter your name: ");
+                lock.lock();
                 try {
                     String name = br.readLine();
                     TaskValidator.validateName(name);
@@ -73,6 +80,8 @@ public class AsyncTaskManager {
                     System.out.println(INPUT_ERROR_MESSAGE);
                 } catch (IllegalArgumentException e) {
                     System.out.println(e.getMessage());
+                } finally {
+                    lock.unlock();
                 }
             }
         });
@@ -93,8 +102,9 @@ public class AsyncTaskManager {
     private CompletableFuture<Byte> inputChoiceAsync() {
         return CompletableFuture.supplyAsync(() -> {
             while (true) {
+                System.out.print("Enter the number: ");
+                lock.lock();
                 try {
-                    System.out.print("Enter the number: ");
                     String choice = br.readLine();
                     TaskValidator.validateChoice(choice);
                     return Byte.parseByte(choice);
@@ -102,30 +112,21 @@ public class AsyncTaskManager {
                     System.out.println(e.getMessage());
                 } catch (IOException e) {
                     System.out.println(INPUT_ERROR_MESSAGE);
+                } finally {
+                    lock.unlock();
                 }
             }
         });
     }
 
-    private boolean taskLoop(byte choicedNumber) {
+    private boolean taskLoop(byte choice) {
         boolean isContinue = true;
-        switch (choicedNumber) {
-            case 1:
-                viewTasks();
-                break;
-            case 2:
-                addTaskAsync();
-                break;
-            case 3:
-                modifyTasksAsync();
-                break;
-            case 4:
-                removeTaskAsync();
-                break;
-            case 0:
-                System.out.println("Goodbye, " + name + "!");
-                isContinue = false;
-                break;
+        switch (choice) {
+            case 1 -> viewTasks();
+            case 2 -> addTaskAsync();
+            case 3 -> modifyTasksAsync();
+            case 4 -> removeTaskAsync();
+            case 0 -> isContinue = false;
         }
         return isContinue;
     }
@@ -150,22 +151,13 @@ public class AsyncTaskManager {
         System.out.println(sb);
     }
 
-    private void viewTaskLoop(byte choicedNumber) {
-        switch (choicedNumber) {
-            case 1:
-                viewEveryTasks();
-                break;
-            case 2:
-                viewPendingTasks();
-                break;
-            case 3:
-                viewUrgentTasks();
-                break;
-            case 4:
-                viewCompletedTasks();
-                break;
-            case 0:
-                break;
+    private void viewTaskLoop(byte choice) {
+        switch (choice) {
+            case 1 -> viewEveryTasks();
+            case 2 -> viewPendingTasks();
+            case 3 -> viewUrgentTasks();
+            case 4 -> viewCompletedTasks();
+            case 0 -> { }
         }
     }
 
@@ -213,15 +205,16 @@ public class AsyncTaskManager {
                 .thenAccept(task -> {
                     offerTask(task);
                     AsyncFileManager.appendTaskToFileAsync(name, task);
+                    taskLogger.log("Task added: " + task.getInfo());
                 })
                 .join();
     }
-
 
     private CompletableFuture<String> inputTaskTitleAsync() {
         return CompletableFuture.supplyAsync(() -> {
             while (true) {
                 System.out.print("Enter the title of the task: ");
+                lock.lock();
                 try {
                     String title = br.readLine();
                     TaskValidator.validateTaskTitle(title);
@@ -230,6 +223,8 @@ public class AsyncTaskManager {
                     System.out.println(INPUT_ERROR_MESSAGE);
                 } catch (IllegalArgumentException e) {
                     System.out.println(e.getMessage());
+                } finally {
+                    lock.unlock();
                 }
             }
         });
@@ -239,6 +234,7 @@ public class AsyncTaskManager {
         return CompletableFuture.supplyAsync(() -> {
             while (true) {
                 System.out.print("Enter the description of the task: ");
+                lock.lock();
                 try {
                     String description = br.readLine();
                     TaskValidator.validateTaskDescription(description);
@@ -247,6 +243,8 @@ public class AsyncTaskManager {
                     System.out.println(INPUT_ERROR_MESSAGE);
                 } catch (IllegalArgumentException e) {
                     System.out.println(e.getMessage());
+                } finally {
+                    lock.unlock();
                 }
             }
         });
@@ -273,9 +271,12 @@ public class AsyncTaskManager {
             }
             Task task = tasks.get(index);
             printMoreModifyMessage();
-            inputChoiceAsync().thenAccept(choicedNumber -> {
-                modifyTaskLoop(task, choicedNumber);
-                AsyncFileManager.updateTasksFileAsync(name, tasks);
+            inputChoiceAsync().thenAccept(choice -> {
+                if (choice != 0) {
+                    modifyTaskLoop(task, choice);
+                    AsyncFileManager.updateTasksFileAsync(name, tasks);
+                    taskLogger.log("Task modified: " + task.getInfo());
+                }
             }).join();
         }).join();
     }
@@ -284,6 +285,7 @@ public class AsyncTaskManager {
         return CompletableFuture.supplyAsync(() -> {
             while (true) {
                 System.out.print("Enter the number of the task: ");
+                lock.lock();
                 try {
                     String index = br.readLine();
                     TaskValidator.validateTaskIndex(index, tasks.size());
@@ -292,6 +294,8 @@ public class AsyncTaskManager {
                     System.out.println(INPUT_ERROR_MESSAGE);
                 } catch (IllegalArgumentException e) {
                     System.out.println(e.getMessage());
+                } finally {
+                    lock.unlock();
                 }
             }
         });
@@ -308,22 +312,13 @@ public class AsyncTaskManager {
         System.out.println(sb);
     }
 
-    private void modifyTaskLoop(Task task, byte choicedNumber) {
-        switch (choicedNumber) {
-            case 1:
-                changeDone(task);
-                break;
-            case 2:
-                changePriority(task);
-                break;
-            case 3:
-                changeTitle(task);
-                break;
-            case 4:
-                changeDescription(task);
-                break;
-            case 0:
-                break;
+    private void modifyTaskLoop(Task task, byte choice) {
+        switch (choice) {
+            case 1 -> changeDone(task);
+            case 2 -> changePriority(task);
+            case 3 -> changeTitle(task);
+            case 4 -> changeDescription(task);
+            case 0 -> { }
         }
     }
 
@@ -360,8 +355,10 @@ public class AsyncTaskManager {
             if (index == -1) {
                 return;
             }
-            deleteTask(tasks.get(index));
+            Task taskToRemove = tasks.get(index);
+            deleteTask(taskToRemove);
             AsyncFileManager.updateTasksFileAsync(name, tasks);
+            taskLogger.log("Task removed: " + taskToRemove.getInfo());
         }).join();
     }
 
