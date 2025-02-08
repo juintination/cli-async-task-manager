@@ -43,20 +43,18 @@ public class AsyncFileManager {
         return CompletableFuture.runAsync(() -> {
             String filePath = TASKS_DIRECTORY + "/" + name + ".txt";
             try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-                if (tasks.isEmpty()) {
-                    String line;
-                    tasks.clear();
-                    while ((line = reader.readLine()) != null) {
-                        String[] taskData = line.split(",");
-                        if (taskData.length == 3) {
-                            Task task = new Task(taskData[0], taskData[1]);
-                            if (taskData[2].equals("Completed")) {
-                                task.changeDone();
-                            } else if (taskData[2].equals("Urgent")) {
-                                task.changePriority();
-                            }
-                            tasks.add(task);
+                String line;
+                tasks.clear();
+                while ((line = reader.readLine()) != null) {
+                    String[] taskData = line.split(",");
+                    if (taskData.length == 3) {
+                        Task task = new Task(taskData[0], taskData[1]);
+                        if (taskData[2].equals("Completed")) {
+                            task.changeDone();
+                        } else if (taskData[2].equals("Urgent")) {
+                            task.changePriority();
                         }
+                        tasks.add(task);
                     }
                 }
             } catch (IOException e) {
@@ -108,4 +106,5 @@ public class AsyncFileManager {
             }
         });
     }
+
 }
