@@ -13,11 +13,14 @@ CLI 프로그램 제작 (비동기 프로그램)
     - 동시에 여러 사용자가 사용할 수 있다.
 
 ### 실행 영상
+
 - 로그 작성 기능
-![log_video](https://github.com/user-attachments/assets/1a1a11c8-c760-49ff-a0ca-d497190623f9)
+
+[![Video Label](http://img.youtube.com/vi/BpECtHcu3rc/0.jpg)](https://youtu.be/BpECtHcu3rc)
 
 - 같은 사용자가 동시에 실행할 경우
-![concurrently_video](https://github.com/user-attachments/assets/67782093-1f6a-404e-97f6-451fdf9a9793)
+
+[![Video Label](http://img.youtube.com/vi/bdchk1bOlSM/0.jpg)](https://youtu.be/bdchk1bOlSM)
 
 ### 구현할 기능 목록
 - 프로그램 비동기 방식 적용
