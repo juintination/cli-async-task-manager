@@ -1,10 +1,6 @@
 ### 2주차 과제 내용
 
-CLI 프로그램 제작 (비동기 프로그램)
-
-1. [1주차 과제로 만든 CLI 프로그램](https://github.com/juintination/cli-task-manager)을 비동기 프로그램으로 변경
-    1. 간단한 스레드 구현(예시: 시간 흐름, 날씨 변화, 음악 플레이 등)
-    2. 스레드간 상호작용할 수 있는 기능 구현(예시: 사람 스레드와 몹 스레드가 싸우는 게임)
+[1주차 과제로 만든 CLI 프로그램](https://github.com/juintination/cli-task-manager)을 비동기 프로그램으로 변경
 
 ### 프로그램 설명
 - CLI 기반의 간단한 작업 관리 프로그램
